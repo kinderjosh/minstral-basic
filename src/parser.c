@@ -286,7 +286,9 @@ AST *parse_value(Parser *prs, char *target_type) {
         case AST_CALL:
         case AST_MATH:
         case AST_PARENS:
-        case AST_CONDITION: break;
+        case AST_CONDITION:
+        case AST_NOT:
+        case AST_UNARY: break;
         default:
             log_error(prs->file, value->ln, value->col);
             fprintf(stderr, "invalid value '%s'\n", asttype_to_string(value->type));
@@ -726,6 +728,25 @@ AST *parse_while(Parser *prs, size_t ln, size_t col) {
     return ast;
 }
 
+AST *parse_logical_not(Parser *prs, size_t ln, size_t col) {
+    AST *ast = create_ast(AST_CONDITION, ln, col);
+    ast->condition.values = create_astlist();
+
+    AST *lhs = parse_value(prs, NULL);
+    ast->condition.is_float = value_is_float(lhs);
+    astlist_push(&ast->condition.values, lhs);
+
+    // Compare == 0 or false.
+    AST *oper = create_ast(AST_OPER, ast->ln, ast->col);
+    oper->oper = TOK_EQ;
+    astlist_push(&ast->condition.values, oper);
+
+    AST *constval = create_ast(AST_INT, ast->ln, ast->col);
+    constval->constant.i64 = 0;
+    astlist_push(&ast->condition.values, constval);
+    return ast;
+}
+
 AST *parse_id(Parser *prs) {
     const size_t ln = prs->tok->ln;
     const size_t col = prs->tok->col;
@@ -753,6 +774,19 @@ AST *parse_id(Parser *prs) {
     } else if (strcmp(id, "while") == 0) {
         free(id);
         return parse_while(prs, ln, col);
+    } else if (strcmp(id, "true") == 0) {
+        free(id);
+        AST *ast = create_ast(AST_INT, ln, col);
+        ast->constant.i64 = 1;
+        return ast;
+    } else if (strcmp(id, "false") == 0) {
+        free(id);
+        AST *ast = create_ast(AST_INT, ln, col);
+        ast->constant.i64 = 0;
+        return ast;
+    } else if (strcmp(id, "not") == 0) {
+        free(id);
+        return parse_logical_not(prs, ln, col);
     } else if (strcmp(id, "asm") == 0) {
         free(id);
         return parse_asm(prs, ln, col);
@@ -809,6 +843,20 @@ AST *parse_parens(Parser *prs) {
     return ast;
 }
 
+AST *parse_not(Parser *prs) {
+    AST *ast = create_ast(AST_NOT, prs->tok->ln, prs->tok->col);
+    eat(prs, TOK_NOT);
+    ast->not_value = parse_value(prs, NULL);
+    return ast;
+}
+
+AST *parse_unary(Parser *prs) {
+    AST *ast = create_ast(AST_UNARY, prs->tok->ln, prs->tok->col);
+    eat(prs, TOK_MINUS);
+    ast->unary_value = parse_value(prs, NULL);
+    return ast;
+}
+
 AST *parse_stmt(Parser *prs) {
     while (prs->tok->type == TOK_EOL)
         eat(prs, TOK_EOL);
@@ -818,6 +866,8 @@ AST *parse_stmt(Parser *prs) {
         case TOK_ID: return parse_id(prs);
         case TOK_INT: return parse_constant(prs);
         case TOK_LPAREN: return parse_parens(prs);
+        case TOK_NOT: return parse_not(prs);
+        case TOK_MINUS: return parse_unary(prs);
         default: break;
     }
 

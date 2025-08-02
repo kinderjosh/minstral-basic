@@ -107,6 +107,12 @@ void delete_ast(AST *ast) {
             delete_ast(ast->while_stmt.condition);
             delete_astlist(&ast->while_stmt.body);
             break;
+        case AST_NOT:
+            delete_ast(ast->not_value);
+            break;
+        case AST_UNARY:
+            delete_ast(ast->unary_value);
+            break;
         default: break;
     }
 
@@ -136,6 +142,8 @@ char *asttype_to_string(ASTType type) {
         case AST_IF: return "if";
         case AST_FOR: return "for";
         case AST_WHILE: return "while";
+        case AST_NOT: return "not";
+        case AST_UNARY: return "unary";
     }
 
     assert(false);

@@ -33,7 +33,9 @@ typedef enum {
     AST_CONDITION,
     AST_IF,
     AST_FOR,
-    AST_WHILE
+    AST_WHILE,
+    AST_NOT,
+    AST_UNARY
 } ASTType;
 
 typedef struct AST {
@@ -127,6 +129,9 @@ typedef struct AST {
             AST *condition;
             ASTList body;
         } while_stmt;
+
+        AST *not_value;
+        AST *unary_value;
     };
 } AST;
 

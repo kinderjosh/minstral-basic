@@ -51,6 +51,18 @@ OpValue ast_to_value(AST *ast) {
         case AST_CONDITION:
             push_stmt(ast);
             return (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
+        case AST_NOT: {
+            OpValue temp_reg = (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
+            push(OP_LOAD, temp_reg, ast_to_value(ast->not_value));
+            push(OP_NOT, temp_reg, temp_reg);
+            return (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
+        }
+        case AST_UNARY: {
+            OpValue temp_reg = (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
+            push(OP_LOAD, temp_reg, ast_to_value(ast->not_value));
+            push(OP_NEG, temp_reg, temp_reg);
+            return (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
+        }
         default: break;
     }
 
