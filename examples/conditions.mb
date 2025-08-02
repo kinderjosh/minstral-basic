@@ -1,0 +1,12 @@
+x = 5
+
+if x == 10 or x == 20
+    x = 100
+else if x == 50
+    x = 1
+else
+    y = 250
+    x = y / 2
+end
+
+print(x)

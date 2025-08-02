@@ -1,0 +1,74 @@
+# basic.mb
+# Standard library for Minstral BASIC.
+
+######################################
+# I/O
+######################################
+
+# Prints a number and a newline.
+sub print(i)
+    asm
+        pri _printi
+        prc '\n'
+    end
+end
+
+# Prints a character.
+sub printchr(c)
+    asm
+        prc _printchrc
+    end
+end
+
+# Prints a number.
+sub printnum(n)
+    asm
+        pri _printnumn
+    end
+end
+
+# Reads an integer from the command line.
+sub input()
+    x = 0
+
+    asm
+        rdi _inputx
+    end
+
+    return x
+end
+
+# Reads a character from the command line.
+sub inputchr()
+    c = 0
+
+    asm
+        rdc _inputchrc
+    end
+
+    return c
+end
+
+######################################
+# Debugging
+######################################
+
+# Stop the program.
+sub stop()
+    asm
+        hlt
+    end
+end
+
+######################################
+# Math
+######################################
+
+# Returns a number as positive.
+sub abs(x)
+    if x < 0
+        return x * -1
+    end
+
+    return x
+end

@@ -1,0 +1,72 @@
+# Input the left number.
+printchr('a')
+printchr(':')
+printchr(' ')
+a = input()
+
+# Input the left operator.
+printchr('o')
+printchr('p')
+printchr(':')
+printchr(' ')
+op = inputchr()
+
+# Input the right number.
+printchr('b')
+printchr(':')
+printchr(' ')
+b = input()
+
+# Math result.
+c = 0
+
+# Parse the operator.
+if op == '+'
+    c = a + b
+else if op == '-'
+    c = a - b
+else if op == '*'
+    c = a * b
+else if op == '/'
+    check_zero_div_err(b) # Can't divide by 0.
+    c = a / b
+else if op == '%'
+    check_zero_div_err(b) # Can't divide by 0.
+    c = a % b
+else
+    # Unknown operator.
+    printchr('b')
+    printchr('a')
+    printchr('d')
+    printchr(' ')
+    printchr('o')
+    printchr('p')
+    printchr('\n')
+end
+
+# Print the result.
+printchr('=')
+printchr(' ')
+print(c)
+
+# Check for divide by zero errors.
+sub check_zero_div_err(x)
+    if x != 0
+        return
+    end
+
+    printchr('z')
+    printchr('e')
+    printchr('r')
+    printchr('o')
+    printchr(' ')
+    printchr('d')
+    printchr('i')
+    printchr('v')
+    printchr(' ')
+    printchr('e')
+    printchr('r')
+    printchr('r')
+    printchr('\n')
+    stop()
+end

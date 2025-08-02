@@ -1,0 +1,35 @@
+CC = gcc
+SRCS = $(wildcard src/*.c) src/backends/minstral.c
+EXEC = mbc
+
+DEBUG ?= 0
+CFLAGS = -Wall -Wextra -Wpedantic -Wno-missing-braces -std=c11 -march=native
+
+ifeq ($(DEBUG),1)
+CFLAGS += -g -Wl,-z,now -Wl,-z,relro \
+	  -fsanitize=undefined,address \
+	  -fstack-protector-strong \
+	  -ftrampolines \
+	  -ftrivial-auto-var-init=pattern
+else
+CFLAGS += -s -O3 -DNDEBUG
+endif
+
+.PHONY: all clean install uninstall
+
+all: $(EXEC)
+
+$(EXEC): $(SRCS)
+	$(CC) $(CFLAGS) $^ -o $@
+
+clean:
+	rm -f ./$(EXEC)
+
+install: all
+	cp ./$(EXEC) /usr/local/bin/
+	mkdir -p /usr/local/share/minstral-basic
+	cp -r lib/* /usr/local/share/minstral-basic/
+
+uninstall:
+	rm -f /usr/local/bin/$(EXEC)
+	rm -rf /usr/local/share/$(EXEC)

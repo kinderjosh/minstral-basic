@@ -1,0 +1,7 @@
+sub sum(x, y)
+    return x + y
+end
+
+x = sum(1, 2)
+
+print(x)
