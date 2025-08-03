@@ -306,16 +306,16 @@ void push_condition(AST *ast) {
                 set_op = OP_NEQ;
                 break;
             case TOK_LT:
-                set_op = OP_LT;
-                break;
-            case TOK_LTE:
-                set_op = OP_LTE;
-                break;
-            case TOK_GT:
                 set_op = OP_GT;
                 break;
-            default:
+            case TOK_LTE:
                 set_op = OP_GTE;
+                break;
+            case TOK_GT:
+                set_op = OP_LT;
+                break;
+            default:
+                set_op = OP_LTE;
                 break;
         }
 
@@ -456,6 +456,9 @@ void push_while(AST *ast) {
     unsigned int before_loop_label = cur_loop_label;
     unsigned int before_end_loop_label = cur_end_loop_label;
 
+    cur_loop_label = condition_label;
+    cur_end_loop_label = final_label;
+
     push_block(&ast->while_stmt.body);
 
     push(OP_JUMP, (OpValue){ .type = VAL_BRANCH, .source = SOURCE(ast), .branch = condition_label }, NOVAL);
@@ -503,6 +506,10 @@ void push_stmt(AST *ast) {
             break;
         case AST_WHILE:
             push_while(ast);
+            break;
+        case AST_LOOP_WORD:
+            push(OP_JUMP, (OpValue){ .type = VAL_BRANCH, .source = SOURCE(ast), 
+                .branch = strcmp(ast->loop_word, "break") == 0 ? cur_end_loop_label : cur_loop_label }, NOVAL);
             break;
         default:
             assert(false);

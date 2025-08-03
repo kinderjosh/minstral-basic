@@ -469,7 +469,7 @@ Token lex_next_token(Lexer *lex) {
             if (peek(lex, 1) == '=')
                 return create_and_step(lex, TOK_NEQ, "!=");
 
-            return create_and_step(lex, TOK_LOG_NOT, "!");
+            break;
         default: break;
     }
 

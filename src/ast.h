@@ -35,7 +35,8 @@ typedef enum {
     AST_FOR,
     AST_WHILE,
     AST_NOT,
-    AST_UNARY
+    AST_UNARY,
+    AST_LOOP_WORD
 } ASTType;
 
 typedef struct AST {
@@ -132,6 +133,7 @@ typedef struct AST {
 
         AST *not_value;
         AST *unary_value;
+        char *loop_word;
     };
 } AST;
 

@@ -341,6 +341,11 @@ ASTList parse_body(Parser *prs, bool single_stmt) {
             case AST_IF:
             case AST_FOR:
             case AST_WHILE: break;
+            case AST_LOOP_WORD:
+                if (prs->flags & IN_LOOP)
+                    break;
+
+                __attribute__((fallthrough));
             default:
                 log_error(prs->file, stmt->ln, stmt->col);
                 fprintf(stderr, "invalid statement '%s' in subroutine '%s'\n", asttype_to_string(stmt->type), cur_func);
@@ -787,6 +792,10 @@ AST *parse_id(Parser *prs) {
     } else if (strcmp(id, "not") == 0) {
         free(id);
         return parse_logical_not(prs, ln, col);
+    } else if (strcmp(id, "break") == 0 || strcmp(id, "continue") == 0) {
+        AST *ast = create_ast(AST_LOOP_WORD, ln, col);
+        ast->loop_word = id;
+        return ast;
     } else if (strcmp(id, "asm") == 0) {
         free(id);
         return parse_asm(prs, ln, col);

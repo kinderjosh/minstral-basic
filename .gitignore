@@ -2,3 +2,4 @@ mbc
 a.out
 test.mb
 .vscode
+*.min

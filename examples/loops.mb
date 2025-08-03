@@ -1,11 +1,16 @@
 for i = 0 to 10
     print(i)
+    break
 end
 
 i = 0
 
-while i < 20 and i < 5
+while i < 20
     i += 1
 end
 
 print(i)
+
+for j = 0 to 10
+    continue
+end

@@ -113,6 +113,9 @@ void delete_ast(AST *ast) {
         case AST_UNARY:
             delete_ast(ast->unary_value);
             break;
+        case AST_LOOP_WORD:
+            free(ast->loop_word);
+            break;
         default: break;
     }
 
@@ -144,6 +147,7 @@ char *asttype_to_string(ASTType type) {
         case AST_WHILE: return "while";
         case AST_NOT: return "not";
         case AST_UNARY: return "unary";
+        case AST_LOOP_WORD: return "loop word";
     }
 
     assert(false);

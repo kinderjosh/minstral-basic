@@ -3,7 +3,7 @@ y = true
 
 if x == 10 or x == 20
     x = 100
-else if x == 50 and not y
+else if x > 50 and not y
     x = 1
 else
     y = 250
