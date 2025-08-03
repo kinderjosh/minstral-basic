@@ -1,6 +1,6 @@
 for i = 0 to 10
     print(i)
-    break
+    break # Break out of the loop.
 end
 
 i = 0
@@ -12,5 +12,6 @@ end
 print(i)
 
 for j = 0 to 10
-    continue
+    continue # Go to the next iteration.
+    x = 10 # This won't be reached.
 end
