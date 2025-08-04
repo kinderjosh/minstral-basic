@@ -8,22 +8,22 @@
 # Prints a number and a newline.
 sub print(i)
     asm
-        pri _printi
-        prc '\n'
+        opi _printi
+        opc '\n'
     end
 end
 
 # Prints a character.
 sub printchr(c)
     asm
-        prc _printchrc
+        opc _printchrc
     end
 end
 
 # Prints a number.
 sub printnum(n)
     asm
-        pri _printnumn
+        opi _printnumn
     end
 end
 
@@ -32,7 +32,7 @@ sub input()
     x = 0
 
     asm
-        rdi _inputx
+        ipi _inputx
     end
 
     return x
@@ -43,7 +43,7 @@ sub inputchr()
     c = 0
 
     asm
-        rdc _inputchrc
+        ipc _inputchrc
     end
 
     return c
