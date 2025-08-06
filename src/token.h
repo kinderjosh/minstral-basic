@@ -14,6 +14,8 @@ typedef enum {
     TOK_RPAREN,
     TOK_LBRACE,
     TOK_RBRACE,
+    TOK_LSQUARE,
+    TOK_RSQUARE,
     TOK_COMMA,
     TOK_EQUAL,
     TOK_AT,

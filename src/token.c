@@ -24,6 +24,8 @@ char *tokentype_to_string(TokenType type) {
         case TOK_RPAREN: return "rparen";
         case TOK_LBRACE: return "lbrace";
         case TOK_RBRACE: return "rbrace";
+        case TOK_LSQUARE: return "lsquare";
+        case TOK_RSQUARE: return "rsquare";
         case TOK_COMMA: return "comma";
         case TOK_EQUAL: return "equal";
         case TOK_AT: return "at";

@@ -52,6 +52,9 @@ void delete_ast(AST *ast) {
         case AST_ROOT:
             delete_astlist(&ast->root);
             break;
+        case AST_STRING:
+            free(ast->constant.string);
+            break;
         case AST_VAR:
             free(ast->var.name);
             break;
@@ -116,6 +119,16 @@ void delete_ast(AST *ast) {
         case AST_LOOP_WORD:
             free(ast->loop_word);
             break;
+        case AST__RES__:
+            delete_ast(ast->__res__);
+            break;
+        case AST_INDEX:
+            delete_ast(ast->index.base);
+            delete_ast(ast->index.index);
+
+            if (ast->index.value != NULL)
+                delete_ast(ast->index.value);
+            break;
         default: break;
     }
 
@@ -131,6 +144,7 @@ char *asttype_to_string(ASTType type) {
         case AST_NOP: return "nop";
         case AST_ROOT: return "root";
         case AST_INT: return "int";
+        case AST_STRING: return "string";
         case AST_VAR: return "variable";
         case AST_FUNC: return "subroutine";
         case AST_CALL: return "call";
@@ -148,6 +162,8 @@ char *asttype_to_string(ASTType type) {
         case AST_NOT: return "not";
         case AST_UNARY: return "unary";
         case AST_LOOP_WORD: return "loop word";
+        case AST__RES__: return "__res__";
+        case AST_INDEX: return "index";
     }
 
     assert(false);

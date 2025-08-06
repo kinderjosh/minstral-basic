@@ -17,13 +17,14 @@ typedef struct {
     enum {
         VAL_NONE,
         VAL_INT,
+        VAL_STRING,
         VAL_REG,
         VAL_VAR,
         VAL_IDENT,
         VAL_RET,
-        VAL_STRING,
         VAL_STACK,
-        VAL_BRANCH
+        VAL_BRANCH,
+        VAL__RES__
     } type;
 
     Source source;
@@ -76,7 +77,10 @@ typedef enum {
     OP_BRANCH_TRUE,
     OP_BRANCH_FALSE,
     OP_JUMP,
-    OP_NEW_BRANCH
+    OP_NEW_BRANCH,
+    OP_REF,
+    OP_DEREF,
+    OP_STORE_DEREF
 } OpType;
 
 typedef struct {

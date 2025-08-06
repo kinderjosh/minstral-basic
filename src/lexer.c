@@ -91,8 +91,10 @@ static Token skip_comment(Lexer *lex) {
     while (lex->cur != '\0' && lex->cur != '\n')
         step(lex);
 
-    if (lex->cur == '\n')
-        return create_and_step(lex, TOK_EOL, "\n");
+    if (lex->cur == '\n') {
+        step(lex);
+        return lex_next_token(lex);
+    }
 
     return create_token(TOK_EOF, mystrdup("eof"), lex->ln, lex->col);
 }
@@ -411,12 +413,8 @@ static Token lex_string(Lexer *lex) {
 }
 
 Token lex_next_token(Lexer *lex) {
-    while (isspace(lex->cur)) {
-        if (lex->cur == '\n' && lex->lexing_asm)
-            return create_and_step(lex, TOK_EOL, "\n");
-
+    while (isspace(lex->cur))
         step(lex);
-    }
 
     if (lex->cur == '#')
         return skip_comment(lex);
@@ -435,6 +433,8 @@ Token lex_next_token(Lexer *lex) {
         case ')': return create_and_step(lex, TOK_RPAREN, ")");
         case '{': return create_and_step(lex, TOK_LBRACE, "{");
         case '}': return create_and_step(lex, TOK_RBRACE, "}");
+        case '[': return create_and_step(lex, TOK_LSQUARE, "[");
+        case ']': return create_and_step(lex, TOK_RSQUARE, "]");
         case ',': return create_and_step(lex, TOK_COMMA, ",");
         case '=':
             if (peek(lex, 1) == '=')

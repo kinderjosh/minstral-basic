@@ -13,8 +13,6 @@ typedef struct {
     size_t pos;
     size_t ln;
     size_t col;
-    bool lexing_asm;
-    unsigned int asm_indent_level;
 } Lexer;
 
 Lexer create_lexer(char *file);

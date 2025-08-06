@@ -14,10 +14,11 @@
 #define STARTING_PROG_CAP 16
 #define SOURCE(ast) (Source){ .scope = ast->scope.full, .func = ast->scope.func, .module = ast->scope.module }
 
-#define LOADING_VALUE_WILL_CORRUPT(type) (type == AST_CALL || type == AST_MATH || type == AST_CONDITION)
+#define LOADING_VALUE_WILL_CORRUPT(type) (type == AST_CALL || type == AST_MATH || type == AST_CONDITION || type == AST_INDEX)
 
 static IR program;
 static OpValue temp_var;
+static OpValue temp_reg;
 
 static unsigned int label_count;
 static unsigned int cur_loop_label;
@@ -40,28 +41,32 @@ OpValue ast_to_value(AST *ast) {
 
     switch (ast->type) {
         case AST_INT: return (OpValue){ .type = VAL_INT, .int_const = ast->constant.i64 };
+        case AST_STRING: return (OpValue){ .type = VAL_STRING, .string = ast->constant.string };
         case AST_VAR: return (OpValue){ .type = VAL_VAR, .source = SOURCE(ast->var.sym), .var = ast->var.name };
         case AST_CALL:
             push_stmt(ast);
             return (OpValue){ .type = VAL_RET, .source = (Source){ .scope = GLOBAL, .func = ast->call.name, .module = ast->scope.module } };
         case AST_MATH:
             push_stmt(ast);
-            return (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
+            return temp_reg;
         case AST_PARENS: return ast_to_value(ast->parens);
         case AST_CONDITION:
             push_stmt(ast);
-            return (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
+            return temp_reg;
         case AST_NOT: {
-            OpValue temp_reg = (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
             push(OP_LOAD, temp_reg, ast_to_value(ast->not_value));
             push(OP_NOT, temp_reg, temp_reg);
-            return (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
+            return temp_reg;
         }
         case AST_UNARY: {
-            OpValue temp_reg = (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
             push(OP_LOAD, temp_reg, ast_to_value(ast->not_value));
             push(OP_NEG, temp_reg, temp_reg);
-            return (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
+            return temp_reg;
+        }
+        case AST__RES__: return (OpValue){ .type = VAL__RES__, .int_const = ast->__res__->constant.i64 };
+        case AST_INDEX: {
+            push_stmt(ast);
+            return temp_reg;
         }
         default: break;
     }
@@ -74,7 +79,8 @@ IR ast_to_ir(AST *ast) {
     program = (IR){ .ops = malloc(STARTING_PROG_CAP * sizeof(Op)), .op_count = 0, .op_capacity = STARTING_PROG_CAP };
     label_count = 0;
 
-    // Temporary variable.
+    // Temporaries.
+    temp_reg = (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
     temp_var = (OpValue){ .type = VAL_VAR, .source = SOURCE(ast), .var = "@temp" };
     push(OP_NEW_VAR, NOVAL, temp_var);
 
@@ -112,6 +118,13 @@ void push_call(AST *ast) {
 }
 
 void push_decl(AST *ast) {
+    // Internal stuff.
+    if (ast->decl.value->type == AST__RES__) {
+        // SHOULD ONLY EVER HAPPEN WHEN IT'S DECLARED!!!!!
+        push(OP_STORE, (OpValue){ .type = VAL_VAR, .source = SOURCE(ast), .var = ast->decl.name }, ast_to_value(ast->decl.value));
+        return;
+    }
+
     OpValue temp = (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
     OpValue var = (OpValue){ .type = VAL_VAR, .source = SOURCE(ast), .var = ast->decl.name };
 
@@ -121,6 +134,13 @@ void push_decl(AST *ast) {
 }
 
 void push_assign(AST *ast) {
+    // Internal stuff.
+    if (ast->assign.value->type == AST__RES__) {
+        // SHOULD ONLY EVER HAPPEN WHEN IT'S DECLARED!!!!!
+        push(OP_STORE, (OpValue){ .type = VAL_VAR, .source = SOURCE(ast->assign.sym), .var = ast->assign.name }, ast_to_value(ast->assign.value));
+        return;
+    }
+
     OpValue temp = (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
     push(OP_LOAD, temp, ast_to_value(ast->assign.value));
     push(OP_STORE, (OpValue){ .type = VAL_VAR, .source = SOURCE(ast->assign.sym), .var = ast->assign.name }, temp);
@@ -173,8 +193,6 @@ OpType oper_to_optype(TokenType oper) {
 
 void push_math(AST *ast) {
     ASTList *values = &ast->math.values;
-
-    OpValue temp_reg = (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
 
     size_t mid_opers[values->size / 2];
     size_t mid_oper_count = 0;
@@ -273,8 +291,6 @@ void push_math(AST *ast) {
 void push_condition(AST *ast) {
     ASTList *values = &ast->condition.values;
     size_t count = values->size;
-
-    OpValue temp_reg = (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
 
     unsigned int done_label = label_count++;
     bool pushed = false;
@@ -405,8 +421,6 @@ void push_for(AST *ast) {
     unsigned int next_loop_label = label_count++;
     unsigned int final_label = label_count++;
 
-    OpValue temp_reg = (OpValue){ .type = VAL_REG, .reg = TEMP_REG };
-
     push(OP_NEW_BRANCH, NOVAL, (OpValue){ .type = VAL_BRANCH, .source = SOURCE(ast), .branch = condition_label });
 
     OpValue var;
@@ -468,6 +482,30 @@ void push_while(AST *ast) {
     cur_end_loop_label = before_end_loop_label;
 }
 
+void push_index(AST *ast) {
+    push(OP_LOAD, temp_reg, ast_to_value(ast->index.base));
+    push(OP_ADD, temp_reg, ast_to_value(ast->index.index));
+
+    if (ast->index.value == NULL) {
+        push(OP_DEREF, temp_reg, temp_reg);
+        return;
+    }
+
+    if (LOADING_VALUE_WILL_CORRUPT(ast->index.value->type)) {
+        // Can't store this in temp var because it will be
+        // overwritten when loading the value.
+        push(OP_PUSH, NOVAL, temp_reg);
+        push(OP_LOAD, temp_reg, ast_to_value(ast->index.value));
+        push(OP_POP, temp_var, NOVAL);
+        push(OP_STORE_DEREF, temp_var, temp_reg);
+        return;
+    }
+
+    push(OP_STORE, temp_var, temp_reg);
+    push(OP_LOAD, temp_reg, ast_to_value(ast->index.value));
+    push(OP_STORE_DEREF, temp_var, temp_reg);
+}
+
 void push_stmt(AST *ast) {
     switch (ast->type) {
         case AST_FUNC:
@@ -477,11 +515,7 @@ void push_stmt(AST *ast) {
             push_call(ast);
             break;
         case AST_DECL:
-            // Global DECLs have following ASSIGNs.
-            //if (strcmp(ast->scope.full, GLOBAL) == 0)
-             //   push(OP_NEW_VAR, NOVAL, (OpValue){ .type = VAL_VAR, .source = SOURCE(ast), .var = ast->decl.name });
-            //else
-                push_decl(ast);
+            push_decl(ast);
             break;
         case AST_ASSIGN:
             push_assign(ast);
@@ -510,6 +544,9 @@ void push_stmt(AST *ast) {
         case AST_LOOP_WORD:
             push(OP_JUMP, (OpValue){ .type = VAL_BRANCH, .source = SOURCE(ast), 
                 .branch = strcmp(ast->loop_word, "break") == 0 ? cur_end_loop_label : cur_loop_label }, NOVAL);
+            break;
+        case AST_INDEX:
+            push_index(ast);
             break;
         default:
             assert(false);
@@ -658,6 +695,15 @@ char *op_to_string(Op *op) {
             break;
         case OP_NEW_BRANCH:
             sprintf(code, "branch %s:\n", dst);
+            break;
+        case OP_REF:
+            sprintf(code, "ref %s, %s\n", dst, src);
+            break;
+        case OP_DEREF:
+            sprintf(code, "deref %s, %s\n", dst, src);
+            break;
+        case OP_STORE_DEREF:
+            sprintf(code, "store deref %s, %s\n", dst, src);
             break;
     }
 

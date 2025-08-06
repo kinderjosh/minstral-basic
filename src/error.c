@@ -7,11 +7,18 @@
 #include <ctype.h>
 #include <assert.h>
 
+#define ERROR_CAP 11
+
 static size_t errors = 0;
 static size_t last_line_thrown = 0;
 
 void log_error(char *file, size_t ln, size_t col) {
     errors++;
+
+    if (errors == ERROR_CAP) {
+        fprintf(stderr, ESC_BOLD "mbc: " ESC_RED "error: " ESC_NORMAL ESC_BOLD "maximum of %d errors logged, aborting\n" ESC_NORMAL, (int)errors - 1);
+        exit(EXIT_FAILURE);
+    }
 
     if (file == NULL)
         fprintf(stderr, ESC_BOLD "mbc: " ESC_RED "error: " ESC_NORMAL);

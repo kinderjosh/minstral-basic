@@ -23,6 +23,7 @@ static Variable variables[TABLE_SIZE];
 static char *data_sect;
 static size_t data_sect_size = 0;
 static size_t data_sect_cap = STARTING_SECT_CAP;
+static size_t data_sect_count = 0;
 
 static char *subroutines;
 static size_t subroutines_size = 0;
@@ -88,6 +89,14 @@ void add_variable(Source *source, char *name) {
     free(data);
 }
 
+size_t get_string(char *str) {
+    char *data = malloc(strlen(str) + 32);
+    sprintf(data, "_@c%zu dat \"%s\"\n", data_sect_count, str);
+    data_sect_append(data);
+    free(data);
+    return data_sect_count++;
+}
+
 char *emit_stmt(Op *op);
 
 char *emit_asm(IR *ir) {
@@ -98,6 +107,7 @@ char *emit_asm(IR *ir) {
 
     data_sect = malloc(STARTING_SECT_CAP);
     data_sect[0] = '\0';
+    data_sect_count = 0;
 
     subroutines = malloc(STARTING_SECT_CAP);
     subroutines[0] = '\0';
@@ -162,6 +172,10 @@ static char *value_to_string(OpValue *value) {
             code = malloc(32);
             sprintf(code, "%" PRId64, value->int_const);
             return code;
+        case VAL_STRING:
+            code = malloc(32);
+            sprintf(code, "_@c%zu", get_string(value->string));
+            return code;
         case VAL_VAR:
             code = malloc(strlen(value->source.scope) + strlen(value->var) + 3);
             sprintf(code, "_%s%s", value->source.scope, value->var);
@@ -177,6 +191,10 @@ static char *value_to_string(OpValue *value) {
         case VAL_BRANCH:
             code = malloc(strlen(value->source.func) + 32);
             sprintf(code, "_%s@l%u", value->source.func, value->branch);
+            return code;
+        case VAL__RES__:
+            code = malloc(32);
+            sprintf(code, "res %" PRId64, value->int_const);
             return code;
         default: break;
     }
@@ -202,9 +220,19 @@ char *emit_new_var(Op *op) {
     return calloc(1, sizeof(char));
 }
 
+char *emit_ref(Op *op) {
+    char *src = value_to_string(&op->src);
+    char *code = malloc(strlen(src) + 8);
+    sprintf(code, "ref %s\n", src);
+    free(src);
+    return code;
+}
+
 char *emit_load(Op *op) {
     if (op->src.type == VAL_REG && op->src.reg == TEMP_REG)
         return calloc(1, sizeof(char));
+    else if (op->src.type == VAL_STRING)
+        return emit_ref(op);
 
     char *src = value_to_string(&op->src);
     char *code = malloc(strlen(src) + 8);
@@ -213,7 +241,27 @@ char *emit_load(Op *op) {
     return code;
 }
 
+char *emit__res__(Op *op) {
+    assert(op->dst.type == VAL_VAR);
+
+    char *var = value_to_string(&op->dst);
+    char *res = value_to_string(&op->src);
+
+    char *code = malloc(strlen(var) + strlen(res) + 3);
+    sprintf(code, "%s %s\n", var, res);
+
+    free(var);
+    free(res);
+
+    data_sect_append(code);
+    free(code);
+    return calloc(1, sizeof(char));
+}
+
 char *emit_store(Op *op) {
+    if (op->src.type == VAL__RES__)
+        return emit__res__(op);
+
     char *dst = value_to_string(&op->dst);
     char *code = malloc(strlen(dst) + 8);
     sprintf(code, "sta %s\n", dst);
@@ -288,7 +336,7 @@ char *emit_math(Op *op) {
             sprintf(code, "shl %s\n", src);
             break;
         case OP_SHR:
-            sprintf(code, "shl %s\n", src);
+            sprintf(code, "shr %s\n", src);
             break;
         case OP_AND:
             sprintf(code, "and %s\n", src);
@@ -386,6 +434,22 @@ char *emit_jump(Op *op) {
     return code;
 }
 
+char *emit_deref(Op *op) {
+    char *dst = value_to_string(&op->dst);
+    char *code = malloc(strlen(dst) + 8);
+    sprintf(code, "ldd %s\n", dst);
+    free(dst);
+    return code;
+}
+
+char *emit_store_deref(Op *op) {
+    char *dst = value_to_string(&op->dst);
+    char *code = malloc(strlen(dst) + 8);
+    sprintf(code, "std %s\n", dst);
+    free(dst);
+    return code;
+}
+
 char *emit_stmt(Op *op) {
     switch (op->type) {
         case OP_FUNC_END:
@@ -423,6 +487,9 @@ char *emit_stmt(Op *op) {
         case OP_BRANCH_FALSE: return emit_branch_bool(op);
         case OP_NEW_BRANCH: return emit_new_branch(op);
         case OP_JUMP: return emit_jump(op);
+        case OP_REF: return emit_ref(op);
+        case OP_DEREF: return emit_deref(op);
+        case OP_STORE_DEREF: return emit_store_deref(op);
         default: break;
     }
 

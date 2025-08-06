@@ -274,6 +274,37 @@ AST *parse_condition(Parser *prs, AST *begin) {
     return ast;
 }
 
+AST *parse_index(Parser *prs, AST *base) {
+    if (base == NULL)
+        base = parse_value(prs, NULL);
+
+    switch (base->type) {
+        case AST_STRING:
+        case AST_CALL:
+        case AST_VAR:
+        case AST_INDEX: break;
+        default:
+            fprintf(stderr, "%s:%zu:%zu: error: invalid index base '%s'\n", prs->file, prs->tok->ln, prs->tok->col, asttype_to_string(base->type));
+            inc_errors();
+            break;
+    }
+
+    AST *ast = create_ast(AST_INDEX, base->ln, base->col);
+    ast->index.base = base;
+
+    eat(prs, TOK_LSQUARE);
+    ast->index.index = parse_value(prs, NULL);
+    eat(prs, TOK_RSQUARE);
+
+    if (prs->tok->type == TOK_EQUAL) {
+        eat(prs, TOK_EQUAL);
+        ast->index.value = parse_value(prs, NULL);
+    } else
+        ast->index.value = NULL;
+
+    return ast;
+}
+
 AST *parse_value(Parser *prs, char *target_type) {
     (void)target_type;
 
@@ -288,13 +319,22 @@ AST *parse_value(Parser *prs, char *target_type) {
         case AST_PARENS:
         case AST_CONDITION:
         case AST_NOT:
-        case AST_UNARY: break;
+        case AST_UNARY:
+        case AST_STRING:
+        case AST__RES__: break;
+        case AST_INDEX:
+            if (value->index.value == NULL)
+                break;
+            __attribute__((fallthrough));
         default:
             log_error(prs->file, value->ln, value->col);
             fprintf(stderr, "invalid value '%s'\n", asttype_to_string(value->type));
             show_error(prs->file, value->ln, value->col);
             break;
     }
+
+    if (prs->tok->type == TOK_LSQUARE)
+        value = parse_index(prs, value);
 
     if (!(prs->flags & IN_MATH) && is_math(prs))
         value = parse_math(prs, value);
@@ -344,7 +384,10 @@ ASTList parse_body(Parser *prs, bool single_stmt) {
             case AST_LOOP_WORD:
                 if (prs->flags & IN_LOOP)
                     break;
-
+                __attribute__((fallthrough));
+            case AST_INDEX:
+                if (stmt->index.value != NULL)
+                    break;
                 __attribute__((fallthrough));
             default:
                 log_error(prs->file, stmt->ln, stmt->col);
@@ -554,6 +597,7 @@ AST *parse_asm(Parser *prs, size_t ln, size_t col) {
         if (prs->tok->type == TOK_COMMA) {
             eat(prs, TOK_COMMA);
             strcat(code, "\n");
+            code_len++;
         }
     }
 
@@ -644,6 +688,9 @@ AST *parse_var(Parser *prs, char *id, AST *sym, size_t ln, size_t col) {
     AST *ast = create_ast(AST_VAR, ln, col);
     ast->var.name = id;
     ast->var.sym = sym;
+
+    if (prs->tok->type == TOK_LSQUARE)
+        ast = parse_index(prs, ast);
 
     if (is_math(prs) && peek(prs, 1)->type == TOK_EQUAL)
         return parse_compound_math(prs, ast);
@@ -801,6 +848,18 @@ AST *parse_id(Parser *prs) {
         return parse_asm(prs, ln, col);
     }
 
+    // --------------------
+    // INTERNAL USE ONLY!!!
+    // --------------------
+    else if (strcmp(id, "__res__") == 0) {
+        free(id);
+        AST *ast = create_ast(AST__RES__, ln, col);
+        ast->__res__ = parse_stmt(prs);
+        assert(ast->__res__->type == AST_INT);
+        return ast;
+    }
+    // --------------------
+
     AST *sym = find_symbol(AST_DECL, id, cur_scope, cur_module);
 
     if (sym != NULL)
@@ -817,6 +876,13 @@ AST *parse_id(Parser *prs) {
 }
 
 AST *parse_constant(Parser *prs) {
+    if (prs->tok->type == TOK_STRING) {
+        AST *ast = create_ast(AST_STRING, prs->tok->ln, prs->tok->col);
+        ast->constant.string = mystrdup(prs->tok->value);
+        eat(prs, TOK_STRING);
+        return ast;
+    }
+
     AST *ast = create_ast(AST_INT, prs->tok->ln, prs->tok->col);
     errno = 0;
     char *endptr;
@@ -873,7 +939,8 @@ AST *parse_stmt(Parser *prs) {
     switch (prs->tok->type) {
         case TOK_EOF: return NOP(prs->tok->ln, prs->tok->col);
         case TOK_ID: return parse_id(prs);
-        case TOK_INT: return parse_constant(prs);
+        case TOK_INT:
+        case TOK_STRING: return parse_constant(prs);
         case TOK_LPAREN: return parse_parens(prs);
         case TOK_NOT: return parse_not(prs);
         case TOK_MINUS: return parse_unary(prs);

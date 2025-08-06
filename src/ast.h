@@ -20,6 +20,7 @@ typedef enum {
     AST_NOP,
     AST_ROOT,
     AST_INT,
+    AST_STRING,
     AST_VAR,
     AST_FUNC,
     AST_CALL,
@@ -36,7 +37,9 @@ typedef enum {
     AST_WHILE,
     AST_NOT,
     AST_UNARY,
-    AST_LOOP_WORD
+    AST_LOOP_WORD,
+    AST__RES__,
+    AST_INDEX
 } ASTType;
 
 typedef struct AST {
@@ -58,6 +61,7 @@ typedef struct AST {
 
         union {
             int64_t i64;
+            char *string;
         } constant;
 
         struct {
@@ -134,6 +138,13 @@ typedef struct AST {
         AST *not_value;
         AST *unary_value;
         char *loop_word;
+        AST *__res__;
+
+        struct {
+            AST *base;
+            AST *index;
+            AST *value;
+        } index;
     };
 } AST;
 

@@ -56,6 +56,7 @@ int compile(char *infile, char *outfile, unsigned int flags) {
         free(stdlib_root->scope.file);
         free(stdlib_root->scope.module);
         free(stdlib_root);
+        stdlib_root = NULL;
     }
 
     IR ir = ast_to_ir(root);
@@ -67,11 +68,12 @@ int compile(char *infile, char *outfile, unsigned int flags) {
     
     delete_ir(&ir);
     delete_ast(root);
-    delete_duplicates();
     delete_symbol_table();
 
     if (flags & COMP_OMIT_LIBS && stdlib_root != NULL)
         delete_ast(stdlib_root);
+    else
+        delete_duplicates();
 
     if (flags & COMP_UPPERCASE) {
         const size_t len = strlen(code);
@@ -108,7 +110,7 @@ int compile(char *infile, char *outfile, unsigned int flags) {
     }
 
     char *cmd = malloc(strlen(outfile) + strlen(outasm) + 22);
-    sprintf(cmd, "minstral asm -o %s %s", outfile, outasm);
+    sprintf(cmd, "mas asm -o %s %s", outfile, outasm);
 
     if (system(cmd) != 0) {
         log_error(infile, 0, 0);
@@ -131,7 +133,7 @@ int compile(char *infile, char *outfile, unsigned int flags) {
         return EXIT_SUCCESS;
     }
 
-    sprintf(cmd, "minstral exe ./%s", outfile);
+    sprintf(cmd, "mas exe ./%s", outfile);
     int runstatus = system(cmd);
     free(cmd);
     return runstatus;
