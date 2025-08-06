@@ -5,11 +5,13 @@
 # I/O
 ######################################
 
-# Prints a number and a newline.
-sub print(i)
-    asm
-        opi _printi
-        opc '\n'
+# Prints a string.
+sub print(str)
+    i = 0
+
+    while str[i] != '\0'
+        printchr(str[i])
+        i += 1
     end
 end
 
@@ -20,38 +22,80 @@ sub printchr(c)
     end
 end
 
-# Prints a number.
-sub printnum(n)
+# Prints a string and a newline.
+sub println(str)
+    print(str)
+    printchr('\n')
+end
+
+# Prints an integer.
+sub printint(int)
     asm
-        opi _printnumn
+        opi _printintint
     end
 end
 
-# Reads an integer from the command line.
+# Reads a string from the command line.
 sub input()
-    x = 0
+    pointer = 0
+    buffer = __res__ 127
 
     asm
-        ipi _inputx
+        ips _inputbuffer
+        ref _inputbuffer
+        sta _inputpointer
     end
 
-    return x
+    return pointer
 end
 
-# Reads a character from the command line.
-sub inputchr()
-    c = 0
+######################################
+# Stack
+######################################
+
+# Pushes a value to the stack.
+sub push(x)
+    asm
+        psh _pushx
+    end
+end
+
+# Pops a value from the stack.
+sub pop()
+    val = 0
 
     asm
-        ipc _inputchrc
+        pop _popval
     end
 
-    return c
+    return val
+end
+
+# Get the top stack value without popping.
+sub topofstack()
+    val = 0
+
+    asm
+        lda ^
+        sta _topofstackval
+    end
+
+    return val
 end
 
 ######################################
 # Debugging
 ######################################
+
+# Stop the program if a condition is false.
+sub assert(condition)
+    if condition
+        return
+    end
+
+    println("assertion failed")
+    stop()
+end
 
 # Stop the program.
 sub stop()
@@ -71,4 +115,65 @@ sub abs(x)
     end
 
     return x
+end
+
+######################################
+# Strings
+######################################
+
+# Counts the length of a string.
+sub stringlen(str)
+    len = 0
+
+    while str[len] != '\0'
+        len += 1
+    end
+
+    return len
+end
+
+# Reverses a string.
+sub stringrev(str)
+    left = 0
+    right = stringlen(str) - 1
+
+    while left < right
+        temp = str[left]
+        str[left] = str[right]
+        str[right] = temp
+
+        left += 1
+        right -= 1
+    end
+end
+
+# Converts an integer to a string.
+sub inttostring(int)
+    len = 0
+    is_neg = false
+    buffer = __res__ 32
+
+    if int == 0
+        buffer[0] = '0'
+        buffer[1] = '\0'
+        return buffer
+    else if int < 0
+        is_neg = true
+        int = -int
+    end
+
+    while int != 0
+        buffer[len] = int % 10 + '0'
+        len += 1
+        int /= 10
+    end
+
+    if is_neg
+        buffer[len] = '-'
+        len += 1
+    end
+
+    buffer[len] = '\0'
+    stringrev(buffer)
+    return buffer
 end
