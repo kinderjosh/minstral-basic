@@ -10,7 +10,7 @@ Firstly, make sure you have the following dependencies installed:
 
 - gcc
 - make
-- [minstral](https://github.com/kinderjosh/minstral-vm)
+- [mas (Minstral VM and Assembler)](https://github.com/kinderjosh/minstral-vm)
 
 Then run the makefile as root:
 
@@ -58,7 +58,7 @@ Try the preview code by running these commands:
 
 ```console
 $ mbc build -o sum examples/sum.mb
-$ minstral exe ./sum
+$ mas exe ./sum
 ```
 
 This converts the BASIC file into a format that can be run with Minstral VM.
