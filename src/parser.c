@@ -281,11 +281,21 @@ AST *parse_index(Parser *prs, AST *base) {
     switch (base->type) {
         case AST_STRING:
         case AST_CALL:
-        case AST_VAR:
         case AST_INDEX: break;
+        case AST_VAR: {
+            AST *sym = find_symbol(AST_DECL, base->var.name, base->scope.full, base->scope.module);
+
+            if (sym->decl.array_size == 0) {
+                log_error(prs->file, base->ln, base->col);
+                fprintf(stderr, "indexing non-array variable '%s'\n", base->var.name);
+                show_error(prs->file, base->ln, base->col);
+            }
+            break;
+        }
         default:
-            fprintf(stderr, "%s:%zu:%zu: error: invalid index base '%s'\n", prs->file, prs->tok->ln, prs->tok->col, asttype_to_string(base->type));
-            inc_errors();
+            log_error(prs->file, base->ln, base->col);
+            fprintf(stderr, "invalid index base '%s'\n", asttype_to_string(base->type));
+            show_error(prs->file, base->ln, base->col);
             break;
     }
 
@@ -484,6 +494,7 @@ AST *parse_subroutine(Parser *prs) {
             param_sym->decl.name = param;
             param_sym->decl.type = mystrdup("i64");
             param_sym->decl.value = NULL;
+            param_sym->decl.array_size = 1; // Could be an array; we don't know.
             add_symbol(param_sym);
             astlist_push(&ast->func.params, param_sym);
         }
@@ -544,6 +555,12 @@ AST *parse_assign(Parser *prs, char *name, const size_t ln, const size_t col) {
         ast->decl.name = name;
         ast->decl.type = mystrdup("i64");
         ast->decl.value = parse_value(prs, ast->decl.type);
+
+        if (ast->decl.value->type == AST__RES__)
+            ast->decl.array_size = (unsigned int)ast->decl.value->constant.i64;
+        else
+            ast->decl.array_size = 0;
+
         add_symbol(ast);
         return ast;
     } else if (prs->flags & IN_FIRST_PASS)
@@ -555,6 +572,10 @@ AST *parse_assign(Parser *prs, char *name, const size_t ln, const size_t col) {
     ast->assign.name = name;
     ast->assign.sym = sym;
     ast->assign.value = parse_value(prs, sym->decl.type);
+
+    if (ast->assign.value->type == AST__RES__)
+        sym->decl.array_size = (unsigned int)ast->assign.value->constant.i64;
+
     return ast;
 }
 
@@ -799,6 +820,22 @@ AST *parse_logical_not(Parser *prs, size_t ln, size_t col) {
     return ast;
 }
 
+AST *parse_array_decl(Parser *prs, size_t ln, size_t col) {
+    AST *ast = create_ast(AST__RES__, ln, col);
+    eat(prs, TOK_LSQUARE);
+    AST *size = parse_value(prs, NULL);
+
+    if (size->type != AST_INT) {
+        log_error(prs->file, size->ln, size->col);
+        fprintf(stderr, "non-integer constant array size '%s'\n", asttype_to_string(size->type));
+        show_error(prs->file, size->ln, size->col);
+    }
+
+    ast->__res__ = size;
+    eat(prs, TOK_RSQUARE);
+    return ast;
+}
+
 AST *parse_id(Parser *prs) {
     const size_t ln = prs->tok->ln;
     const size_t col = prs->tok->col;
@@ -849,7 +886,7 @@ AST *parse_id(Parser *prs) {
     }
 
     // --------------------
-    // INTERNAL USE ONLY!!!
+    // Special stuff
     // --------------------
     else if (strcmp(id, "__res__") == 0) {
         free(id);
@@ -857,6 +894,9 @@ AST *parse_id(Parser *prs) {
         ast->__res__ = parse_stmt(prs);
         assert(ast->__res__->type == AST_INT);
         return ast;
+    } else if (strcmp(id, "array") == 0) {
+        free(id);
+        return parse_array_decl(prs, ln, col);
     }
     // --------------------
 
@@ -1007,6 +1047,10 @@ AST *parse_root(char *file) {
             case AST_IF:
             case AST_FOR:
             case AST_WHILE: break;
+            case AST_INDEX:
+                if (stmt->index.value != NULL)
+                    break;
+                __attribute__((fallthrough));
             default:
                 log_error(prs.file, stmt->ln, stmt->col);
                 fprintf(stderr, "invalid statement '%s'\n", asttype_to_string(stmt->type));

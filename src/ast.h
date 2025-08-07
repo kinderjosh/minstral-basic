@@ -87,6 +87,7 @@ typedef struct AST {
             char *name;
             char *type;
             AST *value;
+            unsigned int array_size;
         } decl;
 
         struct {

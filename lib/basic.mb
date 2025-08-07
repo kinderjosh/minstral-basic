@@ -151,7 +151,7 @@ end
 sub inttostring(int)
     len = 0
     is_neg = false
-    buffer = __res__ 32
+    buffer = array[32]
 
     if int == 0
         buffer[0] = '0'
